@@ -69,7 +69,6 @@ class SetupController extends Controller {
 
         $app_address = $request->input('app:external_url');
         $app_protocol = $request->input('app:protocol');
-        $app_stylesheet = $request->input('app:stylesheet');
 
         date_default_timezone_set('UTC');
         $date_today = date('F jS, Y');
@@ -148,7 +147,6 @@ class SetupController extends Controller {
             'APP_NAME' => $app_name,
             'APP_PROTOCOL' => $app_protocol,
             'APP_ADDRESS' => $app_address,
-            'APP_STYLESHEET' => $app_stylesheet,
             'POLR_GENERATED_AT' => $date_today,
             'POLR_SETUP_RAN' => $polr_setup_ran,
             'MAXMIND_LICENSE_KEY' => $maxmind_license_key,

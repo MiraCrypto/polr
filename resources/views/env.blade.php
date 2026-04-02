@@ -15,10 +15,6 @@ APP_PROTOCOL="{{$APP_PROTOCOL}}"
 # Your app's external address (e.g example.com)
 APP_ADDRESS="{{$APP_ADDRESS}}"
 
-# Your app's bootstrap stylesheet
-# e.g https://maxcdn.bootstrapcdn.com/bootswatch/3.3.5/flatly/bootstrap.min.css
-APP_STYLESHEET="{{$APP_STYLESHEET}}"
-
 # Set to today's date (e.g November 3, 2015)
 POLR_GENERATED_AT="{{$POLR_GENERATED_AT}}"
 

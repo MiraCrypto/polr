@@ -2,11 +2,10 @@
 
 @section('css')
 <link rel='stylesheet' href='/css/about.css' />
-<link rel='stylesheet' href='/css/effects.css' />
 @endsection
 
 @section('content')
-<div class='well logo-well'>
+<div class='well'>
     <img class='logo-img' src='/img/logo.png' />
 </div>
 
