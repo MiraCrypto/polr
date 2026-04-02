@@ -38,30 +38,6 @@ $(function() {
             $('#link-availability-status').html(' <span style="color:red"><i class="fa fa-exclamation-circle"></i> An error occured. Try again</span>' + textstatus);
         });
     });
-    min = 1;
-    max = 2;
-    var i = Math.floor(Math.random() * (max - min + 1)) + min;
-    changeTips(i);
-    var tipstimer = setInterval(function() {
-        changeTips(i);
-        i++;
-    }, 8000);
-
-    function setTip(tip) {
-        $("#tips").html(tip);
-    }
-
-    function changeTips(tcase) {
-        switch (tcase) {
-            case 1:
-                setTip('Create an account to keep track of your links');
-                break;
-            case 2:
-                setTip('Did you know you can change the URL ending by clicking on "Link Options"?');
-                i = 1;
-                break;
-        }
-    }
 });
 
 $(function() {

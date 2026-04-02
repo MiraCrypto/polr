@@ -41,10 +41,6 @@
     <a href='#' class='btn btn-warning' id='show-link-options'>Link Options</a>
     <input type="hidden" name='_token' value='{{csrf_token()}}' />
 </form>
-
-<div id='tips' class='text-muted tips'>
-    <i class='fa fa-spinner'></i> Loading Tips...
-</div>
 @endsection
 
 @section('js')
