@@ -1,81 +1,57 @@
-<img src="https://i.imgur.com/ckI6GTu.png" width="350px" alt="Polr Logo" />
+# Polr
 
+Minimalist URL shortening platform powered by Node.js 26, TypeScript, Hono, and PostgreSQL.
 
-:aerial_tramway: A modern, minimalist, and lightweight URL shortener.
+## Requirements
 
-[![GitHub license](https://img.shields.io/badge/license-GPLv2%2B-blue.svg)]()
-[![GitHub release](https://img.shields.io/github/release/cydrobolt/polr.svg)](https://github.com/cydrobolt/polr/releases)
-[![Builds status](https://travis-ci.org/cydrobolt/polr.svg)](https://travis-ci.org/cydrobolt/polr)
-[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://polr.readthedocs.org/en/latest/)
+- **Node.js** `>= 26.0.0`
+- **PostgreSQL** `>= 16` (tested with PostgreSQL 18)
+- **pnpm**
 
+## Configuration
 
-Polr is an intrepid, self-hostable open-source link shortening web application with a robust API. It allows you to host your own URL shortener, to brand your URLs, and to gain control over your data. Polr is especially easy to use, and provides a modern, themable feel.
+All runtime settings are loaded strictly from environment variables via [`src/config.ts`](src/config.ts). The server fails fast at startup if any required variable is missing or invalid.
 
-[Getting Started](http://docs.polrproject.org/en/latest/user-guide/installation/) - [API Documentation](http://docs.polrproject.org/en/latest/developer-guide/api/) - [Contributing](https://github.com/cydrobolt/polr/blob/master/.github/CONTRIBUTING.md) - [Bugs](https://github.com/cydrobolt/polr/issues) - [IRC](http://webchat.freenode.net/?channels=#polr)
+Copy [`.env.example`](.env.example) to `.env` (or provide the variables via your process supervisor / container runtime):
 
-### Quickstart
+| Variable | Type | Description |
+| :--- | :--- | :--- |
+| `PORT` | Positive integer | HTTP listen port (e.g. `3000`) |
+| `HOST` | String | Bind address (e.g. `127.0.0.1` or `0.0.0.0`) |
+| `APP_NAME` | String | Application display name |
+| `APP_PROTOCOL` | String | Public URL scheme prefix (`https://` or `http://`) |
+| `APP_ADDRESS` | String | Public domain/host (e.g. `short.example.com`) |
+| `APP_KEY` | String | Secret key used for HMAC-SHA256 session and flash cookies |
+| `DATABASE_URL` | String | PostgreSQL connection string |
+| `POLR_BASE` | `32` \| `62` | Counter encoding base (`32` for `0-9a-v`, `62` for `0-9a-zA-Z`) |
+| `POLR_SECRET_BYTES` | Positive integer | Random byte length for secret link keys (`2` produces 4 hex chars) |
+| `_API_KEY_LENGTH` | Positive integer | Random byte length for generated user API keys (`15` produces 30 hex chars) |
+| `SETTING_PUBLIC_INTERFACE` | Boolean (`true`/`false`/`1`/`0`) | Whether unauthenticated visitors can view the home page |
+| `SETTING_SHORTEN_PERMISSION` | Boolean (`true`/`false`/`1`/`0`) | Whether shortening URLs via the web UI requires authentication |
+| `SETTING_INDEX_REDIRECT` | String (optional) | External URL to redirect unauthenticated `/` requests when `SETTING_PUBLIC_INTERFACE=false` (falls back to `/login` when empty) |
+| `SETTING_REDIRECT_404` | Boolean (`true`/`false`/`1`/`0`) | Redirect missing short links to `SETTING_INDEX_REDIRECT` instead of rendering a 404 page |
+| `POLR_VERSION` | String | Version displayed on `/about-polr` |
+| `POLR_RELDATE` | String | Release date displayed on `/about-polr` |
+| `POLR_GENERATED_AT` | String | Instance provisioning date displayed to administrators on `/about-polr` |
 
-Polr is written in PHP and Lumen, using MySQL as its primary database.
+## Database Setup
 
- - To get started with Polr on your server, check out the [installation guide](http://docs.polrproject.org/en/latest/user-guide/installation/). You can clone this repository, or download a [release](https://github.com/cydrobolt/polr/releases).
- - To get started with the Polr API, check out the [API guide](http://docs.polrproject.org/en/latest/developer-guide/api/).
+Apply [`src/db/schema.sql`](src/db/schema.sql) to your PostgreSQL database:
 
+```bash
+psql "$DATABASE_URL" -f src/db/schema.sql
+```
 
-Installation TL;DR: clone or download this repository, set document root to `public/`, create MySQL database, go to `yoursite.com/setup` and follow instructions.
+## Development & Verification
 
-### Demo
+```bash
+pnpm install
+pnpm run lint
+pnpm run test
+pnpm run build
+pnpm run start
+```
 
-To test out the demo, head to [demo.polr.me](http://demo.polr.me) and use the following credentials:
+## License
 
-- Username: `demo-admin`
-- Password: `demo-admin`
-
-### Upgrading Polr
-*Upgrading from 1.x:*
-
-There are breaking changes between 2.x and 1.x; it is not yet possible to automatically upgrade to 2.x.
-
-*Upgrading from 2.x:*
- - Back up your database and files
- - Update by using `git pull` or downloading a release
- - Run `composer install --no-dev -o` to ensure dependencies are up to date
- - Migrate with `php artisan migrate` to ensure database structure is up to date
-
-#### Browser Extensions
-
-* Safari - [Polr.safariextension](https://github.com/cleverdevil/Polr.safariextension)
-
-#### Libraries
-
-* Python - [mypolr](https://github.com/fauskanger/mypolr)
-
-#### Acknowledgements
-We would like to thank Oregon State University's Open Source Lab for providing resources for our infrastructure. The Polr website and demo are hosted on their infrastructure.
-
-<a href="//osuosl.org"><img height="100em" src="http://i.imgur.com/1VtLxyX.png" /></a>
-
-Thank you to [lastspark](https://thenounproject.com/lastspark/) for providing our logo's icon.
-
-#### Versioning
-
-Polr uses [Semantic Versioning](http://semver.org/)
-
-
-#### License
-
-
-    Copyright (C) 2013-2018 Chaoyi Zha
-
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License
-    as published by the Free Software Foundation; either version 2
-    of the License, or (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+GNU GPL v2+

@@ -1,8 +1,7 @@
-/vendor
-bootstrap/cache/
-storage/
-env
+node_modules/
+dist/
 .env
-.env.bak
-.env.example
-composer.phar
+.env.*
+!.env.example
+.DS_Store
+*.log

@@ -1,0 +1,209 @@
+import { describe, expect, it } from 'vitest'
+import {
+  constantTimeStringEqual,
+  hashPasswordWithBcrypt,
+  parseSignedFlashToken,
+  parseSignedSessionToken,
+  serializeSignedFlashToken,
+  serializeSignedSessionToken,
+  verifyPasswordWithBcrypt,
+} from '../../src/domain/authService.js'
+import { decodeBaseNumber, encodeBaseNumber } from '../../src/domain/base62.js'
+import {
+  escapeHtmlEntities,
+  escapeSingleQuotedJsLiteralInHtmlAttribute,
+  formatUtcTimestamp,
+  parseDataTablesQuery,
+  renderAdminApiActionCellHtml,
+  renderLongUrlCellHtml,
+  renderToggleLinkActiveCellHtml,
+  truncateStringWithEllipsis,
+} from '../../src/domain/dataTables.js'
+import {
+  checkIfAlreadyShortenedUrl,
+  formatShortenedUrl,
+  isReservedRouteEnding,
+  isValidEndingSyntax,
+  isValidHttpUrl,
+} from '../../src/domain/linkService.js'
+import { fromLegacyWireRole, toLegacyWireRole } from '../../src/domain/types.js'
+import { TEST_CONFIGURATION } from '../helpers.js'
+
+describe('domain role wire mapping', () => {
+  it('maps between internal UserRole and legacy wire strings', () => {
+    expect(toLegacyWireRole('admin')).toBe('admin')
+    expect(toLegacyWireRole('user')).toBe('')
+    expect(fromLegacyWireRole('admin')).toBe('admin')
+    expect(fromLegacyWireRole('')).toBe('user')
+    expect(fromLegacyWireRole('unknown')).toBe('user')
+  })
+})
+
+describe('base-32 and base-62 counter encoding', () => {
+  it('encodes and decodes base-62 and base-32 integers accurately across digit boundaries', () => {
+    expect(encodeBaseNumber(0, 62)).toBe('0')
+    expect(encodeBaseNumber(61, 62)).toBe('Z')
+    expect(encodeBaseNumber(62, 62)).toBe('10')
+    expect(encodeBaseNumber(3843, 62)).toBe('ZZ')
+    expect(decodeBaseNumber('0', 62)).toBe(0)
+    expect(decodeBaseNumber('Z', 62)).toBe(61)
+    expect(decodeBaseNumber('10', 62)).toBe(62)
+    expect(decodeBaseNumber('ZZ', 62)).toBe(3843)
+
+    expect(encodeBaseNumber(0, 32)).toBe('0')
+    expect(encodeBaseNumber(31, 32)).toBe('v')
+    expect(encodeBaseNumber(32, 32)).toBe('10')
+    expect(decodeBaseNumber('v', 32)).toBe(31)
+    expect(decodeBaseNumber('10', 32)).toBe(32)
+  })
+
+  it('rejects negative integers or characters outside the base alphabet', () => {
+    expect(() => encodeBaseNumber(-1, 62)).toThrow(RangeError)
+    expect(() => decodeBaseNumber('', 62)).toThrow(RangeError)
+    expect(() => decodeBaseNumber('1Z', 32)).toThrow(RangeError)
+  })
+})
+
+describe('authentication cryptography and signed tokens', () => {
+  it('verifies standard and PHP $2y$ bcrypt hashes and rejects empty hashes', async () => {
+    const hash = await hashPasswordWithBcrypt('correct-horse-battery')
+    const phpHash = hash.replace(/^\$2[ab]\$/, '$2y$')
+    expect(await verifyPasswordWithBcrypt('correct-horse-battery', phpHash)).toBe(true)
+    expect(await verifyPasswordWithBcrypt('wrong-password', phpHash)).toBe(false)
+    expect(await verifyPasswordWithBcrypt('any', null)).toBe(false)
+    expect(await verifyPasswordWithBcrypt('any', '')).toBe(false)
+  })
+
+  it('compares strings in constant time without leaking length mismatches', () => {
+    expect(constantTimeStringEqual('token-abc', 'token-abc')).toBe(true)
+    expect(constantTimeStringEqual('token-abc', 'token-abd')).toBe(false)
+    expect(constantTimeStringEqual('short', 'longer-string')).toBe(false)
+  })
+
+  it('signs and verifies session and flash tokens and rejects expired or tampered tokens', () => {
+    const sessionToken = serializeSignedSessionToken(
+      {
+        userId: 7,
+        username: 'operator',
+        role: 'admin',
+        csrfToken: 'csrf-hex-token',
+        issuedAtEpochSeconds: 1_000_000,
+      },
+      'secret-key',
+    )
+
+    expect(parseSignedSessionToken(sessionToken, 'secret-key', 1_000_100)?.username).toBe('operator')
+    expect(parseSignedSessionToken(sessionToken, 'wrong-key', 1_000_100)).toBeNull()
+    expect(parseSignedSessionToken(`${sessionToken}x`, 'secret-key', 1_000_100)).toBeNull()
+    expect(parseSignedSessionToken(sessionToken, 'secret-key', 1_000_000 + 60 * 60 * 24 * 31)).toBeNull()
+
+    const flashToken = serializeSignedFlashToken(
+      { type: 'error', message: 'Invalid credentials' },
+      'secret-key',
+    )
+    expect(parseSignedFlashToken(flashToken, 'secret-key')).toEqual({
+      type: 'error',
+      message: 'Invalid credentials',
+    })
+    expect(parseSignedFlashToken(`${flashToken}tamper`, 'secret-key')).toBeNull()
+  })
+})
+
+describe('url and ending validation helpers', () => {
+  it('accepts http, https, and ftp URLs and rejects dangerous schemes', () => {
+    expect(isValidHttpUrl('https://example.com/path?x=1')).toBe(true)
+    expect(isValidHttpUrl('http://example.com')).toBe(true)
+    expect(isValidHttpUrl('ftp://files.example.com/pub')).toBe(true)
+    expect(isValidHttpUrl('javascript:alert(1)')).toBe(false)
+    expect(isValidHttpUrl('data:text/html,<script>alert(1)</script>')).toBe(false)
+    expect(isValidHttpUrl('file:///etc/passwd')).toBe(false)
+    expect(isValidHttpUrl('   ')).toBe(false)
+  })
+
+  it('distinguishes ending syntax from reserved route collisions', () => {
+    expect(isValidEndingSyntax('valid_ending-123')).toBe(true)
+    expect(isValidEndingSyntax('admin')).toBe(true)
+    expect(isValidEndingSyntax('bad/slash')).toBe(false)
+    expect(isValidEndingSyntax('bad space')).toBe(false)
+
+    expect(isReservedRouteEnding('admin')).toBe(true)
+    expect(isReservedRouteEnding('LOGIN')).toBe(true)
+    expect(isReservedRouteEnding('custom-slug')).toBe(false)
+  })
+
+  it('detects already-shortened URLs and formats public and secret short links', () => {
+    expect(checkIfAlreadyShortenedUrl('https://short.example.com/abc', 'short.example.com')).toBe(true)
+    expect(checkIfAlreadyShortenedUrl('https://bit.ly/xyz', 'short.example.com')).toBe(true)
+    expect(checkIfAlreadyShortenedUrl('https://example.org/page', 'short.example.com')).toBe(false)
+
+    expect(formatShortenedUrl(TEST_CONFIGURATION, 'abc')).toBe('https://short.example.com/abc')
+    expect(formatShortenedUrl(TEST_CONFIGURATION, 'abc', '9f0a')).toBe(
+      'https://short.example.com/abc/9f0a',
+    )
+  })
+})
+
+describe('dataTables query parsing and HTML/Angular cell escaping', () => {
+  it('normalizes out-of-range DataTables pagination and ordering parameters', () => {
+    const parsed = parseDataTablesQuery(
+      'https://short.example.com/api/v2/admin/get_admin_links?draw=-5&start=-10&length=9999&search%5Bvalue%5D=query&order%5B0%5D%5Bcolumn%5D=3&order%5B0%5D%5Bdir%5D=DESC',
+    )
+    expect(parsed).toEqual({
+      draw: 1,
+      start: 0,
+      length: 200,
+      searchValue: 'query',
+      orderColumnIndex: 3,
+      orderDirection: 'desc',
+    })
+  })
+
+  it('escapes HTML entities, Angular interpolation, and single-quoted JS literals in DataTables cells', () => {
+    expect(escapeHtmlEntities(`<script>"'&`)).toBe('&lt;script&gt;&quot;&#039;&amp;')
+    expect(escapeSingleQuotedJsLiteralInHtmlAttribute(`https://example.com/a'b\\c`)).toBe(
+      'https://example.com/a\\&#039;b\\\\c',
+    )
+    expect(truncateStringWithEllipsis('abcdef', 4)).toBe('abcd...')
+    expect(formatUtcTimestamp(new Date('2026-10-27T14:05:09.000Z'))).toBe('2026-10-27 14:05:09')
+
+    const sampleLink = {
+      id: 1,
+      shortUrl: 'slug1',
+      longUrl: `https://example.com/?q={{7*7}}'"><script>`,
+      createdIp: '127.0.0.1',
+      creatorId: 1,
+      creatorUsername: 'admin_user',
+      clicks: 0,
+      secretKey: null,
+      isDisabled: false,
+      isCustom: true,
+      isApi: false,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+      updatedAt: new Date('2026-01-01T00:00:00Z'),
+    }
+
+    const longUrlCell = renderLongUrlCellHtml(sampleLink)
+    expect(longUrlCell).toContain('ng-non-bindable')
+    expect(longUrlCell).not.toContain('<script>')
+    expect(longUrlCell).toContain(`editLongLink('slug1', 'https://example.com/?q={{7*7}}\\&#039;&quot;&gt;&lt;script&gt;')`)
+
+    expect(renderToggleLinkActiveCellHtml({ ...sampleLink, isDisabled: false })).toContain('Disable')
+    expect(renderToggleLinkActiveCellHtml({ ...sampleLink, isDisabled: true })).toContain('Enable')
+
+    const apiActionCell = renderAdminApiActionCellHtml({
+      id: 2,
+      username: 'service_user',
+      passwordHash: null,
+      email: null,
+      createdIp: null,
+      role: 'user',
+      isActive: true,
+      apiKey: 'key-123',
+      apiActive: true,
+      apiQuota: 60,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+      updatedAt: new Date('2026-01-01T00:00:00Z'),
+    })
+    expect(apiActionCell).toContain(`openAPIModal($event, 'service_user', 'key-123', '1', '60', '2')`)
+  })
+})
