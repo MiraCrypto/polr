@@ -14,6 +14,7 @@ export default antfu(
       'dot-notation': 'off',
       'ts/dot-notation': 'off',
       'node/prefer-global/process': 'off',
+      'pnpm/yaml-enforce-settings': 'off',
     },
   },
 )

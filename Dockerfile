@@ -4,17 +4,17 @@ ENV CI=true
 RUN npm install --global pnpm@11
 
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 FROM pnpm-base AS prod-deps
 
 RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm,sharing=locked \
-    pnpm install --store-dir=/var/cache/pnpm --prod --frozen-lockfile --ignore-scripts
+    pnpm install --store-dir=/var/cache/pnpm --prod --frozen-lockfile
 
 FROM pnpm-base AS build
 
 RUN --mount=type=cache,id=pnpm,target=/var/cache/pnpm,sharing=locked \
-    pnpm install --store-dir=/var/cache/pnpm --frozen-lockfile --ignore-scripts
+    pnpm install --store-dir=/var/cache/pnpm --frozen-lockfile
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 RUN pnpm exec tsc --project tsconfig.build.json
