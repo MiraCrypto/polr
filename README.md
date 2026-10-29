@@ -70,6 +70,10 @@ pnpm run test
 pnpm run build
 ```
 
+## Migrating from Polr 2.x
+
+For upgrading an existing MySQL / MariaDB Polr 2.x database to PostgreSQL, see [`scripts/legacy-migration/README.md`](scripts/legacy-migration/README.md).
+
 ## License
 
 GNU GPL v2+
