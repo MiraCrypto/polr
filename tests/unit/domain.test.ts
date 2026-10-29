@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ensureAdministratorAccount } from '../../src/createAdmin.js'
 import {
   constantTimeStringEqual,
   hashPasswordWithBcrypt,
@@ -8,17 +9,7 @@ import {
   serializeSignedSessionToken,
   verifyPasswordWithBcrypt,
 } from '../../src/domain/authService.js'
-import { decodeBaseNumber, encodeBaseNumber } from '../../src/domain/base62.js'
-import {
-  escapeHtmlEntities,
-  escapeSingleQuotedJsLiteralInHtmlAttribute,
-  formatUtcTimestamp,
-  parseDataTablesQuery,
-  renderAdminApiActionCellHtml,
-  renderLongUrlCellHtml,
-  renderToggleLinkActiveCellHtml,
-  truncateStringWithEllipsis,
-} from '../../src/domain/dataTables.js'
+import { encodeBaseNumber } from '../../src/domain/base62.js'
 import {
   checkIfAlreadyShortenedUrl,
   formatShortenedUrl,
@@ -26,8 +17,18 @@ import {
   isValidEndingSyntax,
   isValidHttpUrl,
 } from '../../src/domain/linkService.js'
-import { fromLegacyWireRole, toLegacyWireRole } from '../../src/domain/types.js'
+import { formatUtcTimestamp, fromLegacyWireRole, toLegacyWireRole } from '../../src/domain/types.js'
+import {
+  escapeHtmlEntities,
+  escapeSingleQuotedJsLiteralInHtmlAttribute,
+  parseDataTablesQuery,
+  renderAdminApiActionCellHtml,
+  renderLongUrlCellHtml,
+  renderToggleLinkActiveCellHtml,
+  truncateStringWithEllipsis,
+} from '../../src/views/dataTables.js'
 import { TEST_CONFIGURATION } from '../helpers.js'
+import { createInMemoryRepositories } from '../inMemoryRepositories.js'
 
 describe('domain role wire mapping', () => {
   it('maps between internal UserRole and legacy wire strings', () => {
@@ -40,27 +41,20 @@ describe('domain role wire mapping', () => {
 })
 
 describe('base-32 and base-62 counter encoding', () => {
-  it('encodes and decodes base-62 and base-32 integers accurately across digit boundaries', () => {
+  it('encodes base-62 and base-32 integers accurately across digit boundaries', () => {
     expect(encodeBaseNumber(0, 62)).toBe('0')
     expect(encodeBaseNumber(61, 62)).toBe('Z')
     expect(encodeBaseNumber(62, 62)).toBe('10')
     expect(encodeBaseNumber(3843, 62)).toBe('ZZ')
-    expect(decodeBaseNumber('0', 62)).toBe(0)
-    expect(decodeBaseNumber('Z', 62)).toBe(61)
-    expect(decodeBaseNumber('10', 62)).toBe(62)
-    expect(decodeBaseNumber('ZZ', 62)).toBe(3843)
 
     expect(encodeBaseNumber(0, 32)).toBe('0')
     expect(encodeBaseNumber(31, 32)).toBe('v')
     expect(encodeBaseNumber(32, 32)).toBe('10')
-    expect(decodeBaseNumber('v', 32)).toBe(31)
-    expect(decodeBaseNumber('10', 32)).toBe(32)
   })
 
-  it('rejects negative integers or characters outside the base alphabet', () => {
+  it('rejects negative or non-integer values', () => {
     expect(() => encodeBaseNumber(-1, 62)).toThrow(RangeError)
-    expect(() => decodeBaseNumber('', 62)).toThrow(RangeError)
-    expect(() => decodeBaseNumber('1Z', 32)).toThrow(RangeError)
+    expect(() => encodeBaseNumber(1.5, 62)).toThrow(RangeError)
   })
 })
 
@@ -109,6 +103,42 @@ describe('authentication cryptography and signed tokens', () => {
   })
 })
 
+describe('administrator account bootstrap and recovery', () => {
+  it('creates an initial admin user and idempotently promotes/resets an existing account', async () => {
+    const { usersRepository } = createInMemoryRepositories()
+
+    const created = await ensureAdministratorAccount(usersRepository, {
+      username: '  initial_admin  ',
+      password: 'first-password',
+      email: 'admin@example.com',
+    })
+    expect(created.status).toBe('created')
+    expect(created.user.username).toBe('initial_admin')
+    expect(created.user.role).toBe('admin')
+    expect(created.user.isActive).toBe(true)
+    expect(await verifyPasswordWithBcrypt('first-password', created.user.passwordHash)).toBe(true)
+
+    await usersRepository.updateUserRole(created.user.id, 'user')
+    await usersRepository.toggleUserActive(created.user.id)
+
+    const updated = await ensureAdministratorAccount(usersRepository, {
+      username: 'initial_admin',
+      password: 'recovered-password',
+    })
+    expect(updated.status).toBe('updated')
+    expect(updated.user.role).toBe('admin')
+    expect(updated.user.isActive).toBe(true)
+    expect(await verifyPasswordWithBcrypt('recovered-password', updated.user.passwordHash)).toBe(true)
+
+    await expect(
+      ensureAdministratorAccount(usersRepository, { username: 'bad/name', password: 'pw' }),
+    ).rejects.toThrow(/Invalid username/)
+    await expect(
+      ensureAdministratorAccount(usersRepository, { username: 'valid_admin', password: '' }),
+    ).rejects.toThrow(/Password must not be empty/)
+  })
+})
+
 describe('url and ending validation helpers', () => {
   it('accepts http, https, and ftp URLs and rejects dangerous schemes', () => {
     expect(isValidHttpUrl('https://example.com/path?x=1')).toBe(true)
@@ -131,10 +161,19 @@ describe('url and ending validation helpers', () => {
     expect(isReservedRouteEnding('custom-slug')).toBe(false)
   })
 
-  it('detects already-shortened URLs and formats public and secret short links', () => {
+  it('detects already-shortened hosts accurately without blocking prefix-matching domains', () => {
     expect(checkIfAlreadyShortenedUrl('https://short.example.com/abc', 'short.example.com')).toBe(true)
     expect(checkIfAlreadyShortenedUrl('https://bit.ly/xyz', 'short.example.com')).toBe(true)
-    expect(checkIfAlreadyShortenedUrl('https://example.org/page', 'short.example.com')).toBe(false)
+    expect(checkIfAlreadyShortenedUrl('https://sub.t.co/xyz', 'short.example.com')).toBe(true)
+    expect(checkIfAlreadyShortenedUrl('http://localhost:3000/abc', 'localhost:3000')).toBe(true)
+
+    expect(checkIfAlreadyShortenedUrl('https://t.company.com/report', 'short.example.com')).toBe(false)
+    expect(checkIfAlreadyShortenedUrl('https://t.co.uk/news', 'short.example.com')).toBe(false)
+    expect(checkIfAlreadyShortenedUrl('https://bit.lychee.org/doc', 'short.example.com')).toBe(false)
+    expect(checkIfAlreadyShortenedUrl('http://localhost:30000/abc', 'localhost:3000')).toBe(false)
+    expect(
+      checkIfAlreadyShortenedUrl('https://example.org/share?u=https://t.co/xyz', 'short.example.com'),
+    ).toBe(false)
 
     expect(formatShortenedUrl(TEST_CONFIGURATION, 'abc')).toBe('https://short.example.com/abc')
     expect(formatShortenedUrl(TEST_CONFIGURATION, 'abc', '9f0a')).toBe(

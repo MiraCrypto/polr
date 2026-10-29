@@ -4,12 +4,25 @@ import { TEST_CONFIGURATION } from '../helpers.js'
 import { createInMemoryRepositories } from '../inMemoryRepositories.js'
 
 describe('static assets, 404 fallback policies, and 500 error boundary resilience', () => {
-  it('serves static assets from public/ regardless of working directory', async () => {
+  it('serves static assets and short-circuits missing /favicon.ico without database lookups', async () => {
     const { usersRepository, linksRepository } = createInMemoryRepositories()
+    let shortUrlLookupCount = 0
+    const spyLinksRepository = {
+      ...linksRepository,
+      async findByShortUrl(shortUrl: string, fallback?: boolean) {
+        shortUrlLookupCount++
+        return linksRepository.findByShortUrl(shortUrl, fallback)
+      },
+    }
+
     const app = createApplication({
-      config: TEST_CONFIGURATION,
+      config: {
+        ...TEST_CONFIGURATION,
+        redirectMissingLinksToIndex: true,
+        indexRedirectUrl: 'https://example.org/fallback',
+      },
       usersRepository,
-      linksRepository,
+      linksRepository: spyLinksRepository,
     })
 
     const baseJsResponse = await app.request('/js/base.js')
@@ -19,6 +32,10 @@ describe('static assets, 404 fallback policies, and 500 error boundary resilienc
     const directiveResponse = await app.request('/directives/editLongLinkModal.html')
     expect(directiveResponse.status).toBe(200)
     expect(await directiveResponse.text()).toContain('id="edit-long-link-{{ linkEnding }}"')
+
+    const faviconResponse = await app.request('/favicon.ico')
+    expect(faviconResponse.status).toBe(204)
+    expect(shortUrlLookupCount).toBe(0)
   })
 
   it('applies redirectMissingLinksToIndex policy on missing short links and unmatched paths', async () => {
@@ -54,8 +71,9 @@ describe('static assets, 404 fallback policies, and 500 error boundary resilienc
     expect(redirectedDeep.headers.get('location')).toBe('https://example.org/fallback')
   })
 
-  it('renders a clean 500 error page without leaking stack traces even when database queries fail', async () => {
+  it('logs uncaught errors while rendering a clean 500 error page without leaking stack traces', async () => {
     const { usersRepository, linksRepository } = createInMemoryRepositories()
+    const loggedErrors: unknown[] = []
     const failingLinksRepository = {
       ...linksRepository,
       async findByShortUrl(): Promise<never> {
@@ -73,6 +91,9 @@ describe('static assets, 404 fallback policies, and 500 error boundary resilienc
       config: TEST_CONFIGURATION,
       usersRepository: failingUsersRepository,
       linksRepository: failingLinksRepository,
+      logError: (error) => {
+        loggedErrors.push(error)
+      },
     })
 
     const errorResponse = await app.request('/some-short-link')
@@ -80,5 +101,7 @@ describe('static assets, 404 fallback policies, and 500 error boundary resilienc
     const errorHtml = await errorResponse.text()
     expect(errorHtml).toContain('<h1>500</h1>')
     expect(errorHtml).not.toContain('10.0.0.12:5432')
+    expect(loggedErrors).toHaveLength(1)
+    expect((loggedErrors[0] as Error).message).toContain('10.0.0.12:5432')
   })
 })

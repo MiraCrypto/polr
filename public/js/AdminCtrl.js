@@ -361,8 +361,6 @@ polr.controller('AdminCtrl', function($scope, $compile, $timeout) {
 
     // Initialise AdminCtrl
     $scope.init = function() {
-        var modal_source = $("#modal-template").html();
-
         $('.admin-nav a').click(function(e) {
             e.preventDefault();
             $(this).tab('show');

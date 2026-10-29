@@ -18,7 +18,7 @@ CREATE TABLE users (
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,
     api_key       TEXT UNIQUE,
     api_active    BOOLEAN NOT NULL DEFAULT FALSE,
-    api_quota     INTEGER NOT NULL DEFAULT 60,
+    api_quota     INTEGER NOT NULL DEFAULT 60 CHECK (api_quota >= -1),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

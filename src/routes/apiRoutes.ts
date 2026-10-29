@@ -4,13 +4,13 @@ import type { ApplicationDependencies } from '../app.js'
 import type { LinksRepository, UsersRepository } from '../db/repositories.js'
 import type { UserRecord } from '../domain/types.js'
 import { constantTimeStringEqual } from '../domain/authService.js'
-import { formatUtcTimestamp } from '../domain/dataTables.js'
 import {
   createShortenedLink,
   isValidEndingSyntax,
   isValidHttpUrl,
   LinkValidationError,
 } from '../domain/linkService.js'
+import { formatUtcTimestamp } from '../domain/types.js'
 import {
   extractClientIpAddress,
   parseRequestFormOrJsonFields,

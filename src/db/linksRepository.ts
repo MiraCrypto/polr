@@ -1,6 +1,7 @@
 import type { Sql } from 'postgres'
 import type { DataTablesQueryParameters, DataTablesResponse, LinkRecord } from '../domain/types.js'
 import type { CreateLinkParameters, LinksRepository } from './repositories.js'
+import { formatSubstringLikePattern } from './client.js'
 
 interface RawLinkRow {
   readonly id: number
@@ -226,8 +227,9 @@ export function createPostgresLinksRepository(sql: Sql): LinksRepository {
       const sortDirectionSql = query.orderDirection === 'desc'
         ? sql`DESC`
         : sql`ASC`
-      const hasSearch = query.searchValue.trim().length > 0
-      const searchPattern = `%${query.searchValue.trim()}%`
+      const trimmedSearch = query.searchValue.trim()
+      const hasSearch = trimmedSearch.length > 0
+      const searchPattern = formatSubstringLikePattern(trimmedSearch)
 
       const totalCountRows = await sql<Array<{ readonly count: string }>>`
         SELECT COUNT(*)::text AS count FROM links
@@ -235,7 +237,7 @@ export function createPostgresLinksRepository(sql: Sql): LinksRepository {
       const recordsTotal = Number(totalCountRows[0]?.count ?? 0)
 
       const whereFragment = hasSearch
-        ? sql`WHERE links.short_url ILIKE ${searchPattern} OR links.long_url ILIKE ${searchPattern} OR COALESCE(users.username, '') ILIKE ${searchPattern}`
+        ? sql`WHERE links.short_url ILIKE ${searchPattern} ESCAPE '\\' OR links.long_url ILIKE ${searchPattern} ESCAPE '\\' OR COALESCE(users.username, '') ILIKE ${searchPattern} ESCAPE '\\'`
         : sql``
 
       const filteredCountRows = hasSearch
@@ -271,8 +273,9 @@ export function createPostgresLinksRepository(sql: Sql): LinksRepository {
       const sortDirectionSql = query.orderDirection === 'desc'
         ? sql`DESC`
         : sql`ASC`
-      const hasSearch = query.searchValue.trim().length > 0
-      const searchPattern = `%${query.searchValue.trim()}%`
+      const trimmedSearch = query.searchValue.trim()
+      const hasSearch = trimmedSearch.length > 0
+      const searchPattern = formatSubstringLikePattern(trimmedSearch)
 
       const totalCountRows = await sql<Array<{ readonly count: string }>>`
         SELECT COUNT(*)::text AS count
@@ -282,7 +285,7 @@ export function createPostgresLinksRepository(sql: Sql): LinksRepository {
       const recordsTotal = Number(totalCountRows[0]?.count ?? 0)
 
       const whereFragment = hasSearch
-        ? sql`WHERE links.creator_id = ${creatorId} AND (links.short_url ILIKE ${searchPattern} OR links.long_url ILIKE ${searchPattern})`
+        ? sql`WHERE links.creator_id = ${creatorId} AND (links.short_url ILIKE ${searchPattern} ESCAPE '\\' OR links.long_url ILIKE ${searchPattern} ESCAPE '\\')`
         : sql`WHERE links.creator_id = ${creatorId}`
 
       const filteredCountRows = hasSearch

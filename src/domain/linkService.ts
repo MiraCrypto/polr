@@ -84,12 +84,36 @@ export function isReservedRouteEnding(linkEnding: string): boolean {
 }
 
 export function checkIfAlreadyShortenedUrl(longUrl: string, appAddress: string): boolean {
-  const domainsToCheck = [...KNOWN_SHORTENER_DOMAINS, appAddress]
-  for (const domain of domainsToCheck) {
-    if (domain.length > 0 && longUrl.includes(`://${domain}`)) {
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(longUrl)
+  }
+  catch {
+    return false
+  }
+
+  const candidateHost = parsedUrl.host.toLowerCase()
+  const candidateHostname = parsedUrl.hostname.toLowerCase()
+  const normalizedAppAddress = appAddress.trim().toLowerCase().replace(/\/+$/, '')
+
+  if (normalizedAppAddress.length > 0) {
+    const matchesAppHost = normalizedAppAddress.includes(':')
+      ? candidateHost === normalizedAppAddress
+      : candidateHostname === normalizedAppAddress
+    if (matchesAppHost) {
       return true
     }
   }
+
+  for (const shortenerDomain of KNOWN_SHORTENER_DOMAINS) {
+    if (
+      candidateHostname === shortenerDomain
+      || candidateHostname.endsWith(`.${shortenerDomain}`)
+    ) {
+      return true
+    }
+  }
+
   return false
 }
 

@@ -75,3 +75,8 @@ export function fromLegacyWireRole(wireRole: string): UserRole {
     ? 'admin'
     : 'user'
 }
+
+export function formatUtcTimestamp(date: Date): string {
+  const isoString = date.toISOString()
+  return `${isoString.slice(0, 10)} ${isoString.slice(11, 19)}`
+}

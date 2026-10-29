@@ -1,6 +1,7 @@
 import type { Sql } from 'postgres'
 import type { DataTablesQueryParameters, DataTablesResponse, UserRecord, UserRole } from '../domain/types.js'
 import type { CreateUserParameters, UsersRepository } from './repositories.js'
+import { formatSubstringLikePattern } from './client.js'
 
 interface RawUserRow {
   readonly id: number
@@ -203,8 +204,9 @@ export function createPostgresUsersRepository(sql: Sql): UsersRepository {
       const sortDirectionSql = query.orderDirection === 'desc'
         ? sql`DESC`
         : sql`ASC`
-      const hasSearch = query.searchValue.trim().length > 0
-      const searchPattern = `%${query.searchValue.trim()}%`
+      const trimmedSearch = query.searchValue.trim()
+      const hasSearch = trimmedSearch.length > 0
+      const searchPattern = formatSubstringLikePattern(trimmedSearch)
 
       const totalCountRows = await sql<Array<{ readonly count: string }>>`
         SELECT COUNT(*)::text AS count FROM users
@@ -212,7 +214,7 @@ export function createPostgresUsersRepository(sql: Sql): UsersRepository {
       const recordsTotal = Number(totalCountRows[0]?.count ?? 0)
 
       const whereFragment = hasSearch
-        ? sql`WHERE username ILIKE ${searchPattern} OR COALESCE(email, '') ILIKE ${searchPattern}`
+        ? sql`WHERE username ILIKE ${searchPattern} ESCAPE '\\' OR COALESCE(email, '') ILIKE ${searchPattern} ESCAPE '\\'`
         : sql``
 
       const filteredCountRows = hasSearch

@@ -218,6 +218,18 @@ describe('frontend AJAX endpoints, DataTables wire contracts, and RBAC matrix', 
     expect(await editQuotaResponse.text()).toBe('OK')
     expect(state.users.find(u => u.id === 2)?.apiQuota).toBe(-1)
 
+    const invalidNegativeQuotaResponse = await app.request('/api/v2/admin/edit_api_quota', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': adminSession.sessionCookies,
+        'X-CSRF-TOKEN': adminSession.csrfToken,
+      },
+      body: new URLSearchParams({ user_id: '2', new_quota: '-50' }).toString(),
+    })
+    expect(invalidNegativeQuotaResponse.status).toBe(400)
+    expect(state.users.find(u => u.id === 2)?.apiQuota).toBe(-1)
+
     const deleteDevUserResponse = await app.request('/api/v2/admin/delete_user', {
       method: 'POST',
       headers: {

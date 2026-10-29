@@ -32,7 +32,7 @@ import {
 } from './requestContext.js'
 
 export function registerWebRoutes(app: Hono, dependencies: ApplicationDependencies): void {
-  const { config, usersRepository, linksRepository } = dependencies
+  const { config, usersRepository, linksRepository, logError } = dependencies
 
   app.get('/', async (context) => {
     const pageContext = await buildPageRenderContext(context, config, usersRepository)
@@ -82,7 +82,7 @@ export function registerWebRoutes(app: Hono, dependencies: ApplicationDependenci
   })
 
   app.get('/logout', (context) => {
-    clearUserSessionCookie(context)
+    clearUserSessionCookie(context, config)
     return context.redirect('/', 302)
   })
 
@@ -230,7 +230,12 @@ export function registerWebRoutes(app: Hono, dependencies: ApplicationDependenci
       }
     }
 
-    await linksRepository.incrementClicks(link.id)
+    try {
+      await linksRepository.incrementClicks(link.id)
+    }
+    catch (error) {
+      logError?.(error)
+    }
     return context.redirect(link.longUrl, 301)
   }
 

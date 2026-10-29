@@ -1,6 +1,6 @@
 import type { ApplicationConfiguration } from '../config.js'
 import type { FlashMessage, UserRecord } from '../domain/types.js'
-import { escapeHtmlEntities } from '../domain/dataTables.js'
+import { escapeHtmlEntities } from './dataTables.js'
 
 export interface BaseLayoutParameters {
   readonly config: ApplicationConfiguration
@@ -10,14 +10,17 @@ export interface BaseLayoutParameters {
   readonly flashMessages: readonly FlashMessage[]
   readonly extraStylesheets?: readonly string[]
   readonly extraScripts?: readonly string[]
-  readonly rawFooterHtml?: string
   readonly contentHtml: string
   readonly noDivPadding?: boolean
   readonly largeJumbotron?: boolean
   readonly noIndexMeta?: boolean
 }
 
-function renderNavbarHtml(config: ApplicationConfiguration, currentUser: UserRecord | null, csrfToken: string): string {
+function renderNavbarHtml(
+  config: ApplicationConfiguration,
+  currentUser: UserRecord | null,
+  csrfToken: string,
+): string {
   const escapedAppName = escapeHtmlEntities(config.appName)
   const escapedCsrfToken = escapeHtmlEntities(csrfToken)
 
@@ -64,12 +67,12 @@ function renderNavbarHtml(config: ApplicationConfiguration, currentUser: UserRec
             <a class="navbar-brand" href="/">${escapedAppName}</a>
         </div>
 
-        <ul id="navbar" class="nav navbar-collapse collapse navbar-nav" id="nbc">
+        <ul id="navbar" class="nav navbar-collapse collapse navbar-nav">
             <li><a href="/about-polr">About</a></li>
             ${mobileLinks}
         </ul>
 
-        <ul id="navbar" class="nav pull-right navbar-nav hidden-xs">
+        <ul class="nav pull-right navbar-nav hidden-xs">
             <li class="divider-vertical"></li>
             ${desktopAuthSection}
         </ul>
@@ -161,7 +164,6 @@ export function renderBaseLayout(parameters: BaseLayoutParameters): string {
 
     ${renderToastrScriptBlock(parameters.flashMessages)}
 
-    ${parameters.rawFooterHtml ?? ''}
     ${extraJsHtml}
 </body>
 </html>`

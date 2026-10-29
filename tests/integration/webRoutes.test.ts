@@ -315,6 +315,26 @@ describe('web routes, session lifecycle, shortening, and redirect contracts', ()
 
     const counterDifferentCaseResponse = await app.request('/1a')
     expect(counterDifferentCaseResponse.status).toBe(404)
+
+    // Transient database write failures during click counting must never break link redirects
+    const clickWriteErrors: unknown[] = []
+    const resilientRedirectApp = createApplication({
+      config: TEST_CONFIGURATION,
+      usersRepository,
+      linksRepository: {
+        ...linksRepository,
+        async incrementClicks(): Promise<never> {
+          throw new Error('read-only transaction during failover')
+        },
+      },
+      logError: (error) => {
+        clickWriteErrors.push(error)
+      },
+    })
+    const redirectUnderWriteFailure = await resilientRedirectApp.request('/1A')
+    expect(redirectUnderWriteFailure.status).toBe(301)
+    expect(redirectUnderWriteFailure.headers.get('location')).toBe('https://example.com/counter-uppercase')
+    expect(clickWriteErrors).toHaveLength(1)
   })
 
   it('renders role-specific dashboard tabs and build metadata, and updates passwords', async () => {
@@ -419,6 +439,7 @@ describe('web routes, session lifecycle, shortening, and redirect contracts', ()
     ).text()
     expect(adminAboutHtml).toContain('Build Information')
     expect(adminAboutHtml).toContain('January 01, 2025')
+    expect(adminAboutHtml).not.toContain('project.polr.me')
 
     const failedChange = await app.request('/admin/action/change_password', {
       method: 'POST',

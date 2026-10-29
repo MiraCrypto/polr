@@ -24,7 +24,21 @@ const MINIMUM_CSRF_COOKIE_HEX_LENGTH = 32
 const DEFAULT_FALLBACK_CLIENT_IP = '127.0.0.1'
 
 function shouldUseSecureCookies(config: ApplicationConfiguration): boolean {
-  return config.appProtocol.toLowerCase().startsWith('https')
+  return config.appProtocol === 'https://'
+}
+
+function buildCookieDeletionOptions(config: ApplicationConfiguration): {
+  readonly path: string
+  readonly httpOnly: boolean
+  readonly sameSite: 'Lax'
+  readonly secure: boolean
+} {
+  return {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'Lax',
+    secure: shouldUseSecureCookies(config),
+  }
 }
 
 export function extractClientIpAddress(context: Context): string {
@@ -57,7 +71,7 @@ export async function resolveCurrentUser(
 
   const user = await usersRepository.findById(session.userId, false)
   if (user === null) {
-    deleteCookie(context, SESSION_COOKIE_NAME, { path: '/' })
+    deleteCookie(context, SESSION_COOKIE_NAME, buildCookieDeletionOptions(config))
     return { user: null, session: null }
   }
 
@@ -138,8 +152,8 @@ export function setSignedUserSessionCookie(
   return payload
 }
 
-export function clearUserSessionCookie(context: Context): void {
-  deleteCookie(context, SESSION_COOKIE_NAME, { path: '/' })
+export function clearUserSessionCookie(context: Context, config: ApplicationConfiguration): void {
+  deleteCookie(context, SESSION_COOKIE_NAME, buildCookieDeletionOptions(config))
 }
 
 export function setFlashMessageCookie(
@@ -167,7 +181,7 @@ export function consumeFlashMessages(
     return []
   }
 
-  deleteCookie(context, FLASH_COOKIE_NAME, { path: '/' })
+  deleteCookie(context, FLASH_COOKIE_NAME, buildCookieDeletionOptions(config))
   const parsedFlash = parseSignedFlashToken(rawFlashCookie, config.appKey)
   return parsedFlash !== null
     ? [parsedFlash]

@@ -1,5 +1,5 @@
-import type { DataTablesQueryParameters, DataTablesResponse, LinkRecord, UserRecord } from './types.js'
-import { toLegacyWireRole } from './types.js'
+import type { DataTablesQueryParameters, DataTablesResponse, LinkRecord, UserRecord } from '../domain/types.js'
+import { formatUtcTimestamp, toLegacyWireRole } from '../domain/types.js'
 
 const DEFAULT_PAGE_LENGTH = 10
 const MAX_PAGE_LENGTH = 200
@@ -28,11 +28,6 @@ export function truncateStringWithEllipsis(value: string, maximumLength: number)
     return value
   }
   return `${value.slice(0, maximumLength)}...`
-}
-
-export function formatUtcTimestamp(date: Date): string {
-  const isoString = date.toISOString()
-  return `${isoString.slice(0, 10)} ${isoString.slice(11, 19)}`
 }
 
 export function parseDataTablesQuery(requestUrl: string): DataTablesQueryParameters {

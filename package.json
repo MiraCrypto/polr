@@ -9,9 +9,10 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc --project tsconfig.test.json && tsc",
-    "typecheck": "tsc --project tsconfig.test.json",
+    "build": "tsc && tsc --project tsconfig.build.json",
+    "typecheck": "tsc",
     "start": "node dist/index.js",
+    "create-admin": "tsx src/createAdmin.ts",
     "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

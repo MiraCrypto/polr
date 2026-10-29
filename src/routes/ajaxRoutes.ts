@@ -3,18 +3,18 @@ import type { ApplicationDependencies } from '../app.js'
 import type { UserRecord } from '../domain/types.js'
 import { generateRandomHexString, hashPasswordWithBcrypt } from '../domain/authService.js'
 import {
-  formatAdminLinksDataTableResponse,
-  formatAdminUsersDataTableResponse,
-  formatUserLinksDataTableResponse,
-  parseDataTablesQuery,
-} from '../domain/dataTables.js'
-import {
   isDatabaseUniqueConstraintViolation,
   isReservedRouteEnding,
   isValidEndingSyntax,
   isValidHttpUrl,
 } from '../domain/linkService.js'
 import { fromLegacyWireRole } from '../domain/types.js'
+import {
+  formatAdminLinksDataTableResponse,
+  formatAdminUsersDataTableResponse,
+  formatUserLinksDataTableResponse,
+  parseDataTablesQuery,
+} from '../views/dataTables.js'
 import {
   extractClientIpAddress,
   parseRequestFormOrJsonFields,
@@ -156,6 +156,9 @@ export function registerAjaxRoutes(app: Hono, dependencies: ApplicationDependenc
     const newQuota = Number.parseInt(auth.fields['new_quota'] ?? '', 10)
     if (Number.isNaN(targetUserId) || Number.isNaN(newQuota)) {
       return context.text('404 User not found.', 404)
+    }
+    if (newQuota < -1) {
+      return context.text('400 Invalid API quota.', 400)
     }
 
     const updated = await usersRepository.updateApiQuota(targetUserId, newQuota)

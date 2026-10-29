@@ -18,21 +18,3 @@ export function encodeBaseNumber(value: number, radix: 32 | 62 = 62): string {
 
   return encodedResult
 }
-
-export function decodeBaseNumber(encodedValue: string, radix: 32 | 62 = 62): number {
-  if (encodedValue.length === 0) {
-    throw new RangeError('Encoded value must not be empty')
-  }
-
-  let decodedNumber = 0
-  for (let index = 0; index < encodedValue.length; index += 1) {
-    const character = encodedValue[index] ?? ''
-    const digitValue = BASE_ALPHABET.indexOf(character)
-    if (digitValue === -1 || digitValue >= radix) {
-      throw new RangeError(`Invalid base-${radix} character: ${character}`)
-    }
-    decodedNumber = radix * decodedNumber + digitValue
-  }
-
-  return decodedNumber
-}

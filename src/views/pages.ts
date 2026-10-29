@@ -1,6 +1,6 @@
 import type { ApplicationConfiguration } from '../config.js'
 import type { FlashMessage, UserRecord } from '../domain/types.js'
-import { escapeHtmlEntities } from '../domain/dataTables.js'
+import { escapeHtmlEntities } from './dataTables.js'
 import { renderBaseLayout } from './layout.js'
 
 export interface PageRenderContext {
@@ -111,14 +111,16 @@ export function renderAboutPage(context: PageRenderContext): string {
   const escapedAppAddress = escapeHtmlEntities(context.config.appAddress)
   const escapedVersion = escapeHtmlEntities(context.config.polrVersion)
   const escapedReleaseDate = escapeHtmlEntities(context.config.polrReleaseDate)
-  const escapedGeneratedAt = escapeHtmlEntities(context.config.polrGeneratedAt)
+  const generatedSuffix = context.config.polrGeneratedAt !== null
+    ? ` on ${escapeHtmlEntities(context.config.polrGeneratedAt)}`
+    : ''
 
   const adminBuildInfo = context.currentUser?.role === 'admin'
     ? `<dl>
         <p>Build Information</p>
         <dt>Version: ${escapedVersion}</dt>
         <dt>Release date: ${escapedReleaseDate}</dt>
-        <dt>App Install: ${escapedAppName} on ${escapedAppAddress} on ${escapedGeneratedAt}</dt>
+        <dt>App Install: ${escapedAppName} on ${escapedAppAddress}${generatedSuffix}</dt>
     </dl>
     <p>You are seeing the information above because you are logged in as an administrator.</p>`
     : ''
@@ -129,8 +131,8 @@ export function renderAboutPage(context: PageRenderContext): string {
 
 <div class='about-contents'>
     ${adminBuildInfo}
-    <p>${escapedAppName} is powered by Polr 2, an open source, minimalist link shortening platform. The Polr Project is in no way associated with this site.
-        Learn more at <a href='https://github.com/Cydrobolt/polr'>its Github page</a> or its <a href="//project.polr.me">project site</a>.
+    <p>${escapedAppName} is powered by Polr, an open source, minimalist link shortening platform. The Polr Project is in no way associated with this site.
+        Learn more at <a href='https://github.com/Cydrobolt/polr' rel='noopener noreferrer'>its GitHub page</a>.
         <br />Polr is licensed under the GNU GPL License.
     </p>
 </div>`
@@ -227,10 +229,9 @@ export function renderAdminDashboardPage(context: PageRenderContext, user: UserR
     ? `<div role="tabpanel" class="tab-pane" id="developer">
                 <h3>Developer</h3>
 
-                <p>API keys and documentation for developers.</p>
+                <p>API keys and endpoints for programmatic link shortening.</p>
                 <p>
-                    Documentation:
-                    <a href='http://docs.polr.me/en/latest/developer-guide/api/'>http://docs.polr.me/en/latest/developer-guide/api/</a>
+                    Endpoints: <code>/api/v2/action/shorten</code>, <code>/api/v2/action/shorten_bulk</code>, <code>/api/v2/action/lookup</code>
                 </p>
 
                 <h4>API Key: </h4>
@@ -305,31 +306,9 @@ export function renderAdminDashboardPage(context: PageRenderContext, user: UserR
     </div>
 </div>`
 
-  const modalsTemplateHtml = `<script id="modal-template" type="text/x-handlebars-template">
-    <div class="modal fade" id="{{id}}" tabindex="-1" role="dialog">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                    <h4 class="modal-title">{{title}}</h4>
-                </div>
-                <div class="modal-body">
-                    {{{body}}}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</script>`
-
   return renderBaseLayout({
     ...context,
     extraStylesheets: ['/css/admin.css', '/css/datatables.min.css'],
-    rawFooterHtml: modalsTemplateHtml,
     extraScripts: ['/js/datatables.min.js', '/js/api.js', '/js/AdminCtrl.js'],
     contentHtml,
   })
