@@ -1,8 +1,7 @@
-import type { Options, Sql } from 'postgres'
 import { readFile } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import { fileURLToPath } from 'node:url'
-import postgres from 'postgres'
+import { createPostgresClient } from '../../src/db/client.js'
 
 type MigrationUserRole = 'user' | 'admin'
 
@@ -85,8 +84,6 @@ const MAXIMUM_LONG_URL_LENGTH = 65535
 const DEFAULT_FALLBACK_MIGRATION_TIMESTAMP = '1970-01-01T00:00:00Z'
 const DEFAULT_FALLBACK_API_QUOTA = 60
 const DEFAULT_FALLBACK_LINK_IP = '127.0.0.1'
-const DEFAULT_POSTGRES_PORT = 5432
-const DEFAULT_POSTGRES_DATABASE = 'postgres'
 const DATABASE_CLOSE_TIMEOUT_SECONDS = 5
 const DEFAULT_SCHEMA_SQL_FILE_PATH = fileURLToPath(
   new URL('../../src/db/schema.sql', import.meta.url),
@@ -322,54 +319,6 @@ export function normalizeLegacyDumpForPostgres(dump: LegacyDumpPayload): Normali
   }
 }
 
-function connectPostgresForMigration(databaseUrl: string): Sql {
-  const options: Options<Record<string, never>> = {
-    max: 1,
-    connect_timeout: 10,
-    prepare: false,
-  }
-
-  try {
-    const parsedUrl = new URL(databaseUrl)
-    const lowerHostname = parsedUrl.hostname.toLowerCase()
-    const authoritySocketPath = (lowerHostname.startsWith('%2f') || parsedUrl.hostname.includes('/'))
-      ? decodeURIComponent(parsedUrl.hostname)
-      : null
-    const queryHost = parsedUrl.searchParams.get('host')
-    const querySocketPath = queryHost !== null && queryHost.startsWith('/')
-      ? queryHost
-      : null
-    const socketDirectory = authoritySocketPath ?? querySocketPath
-
-    if (socketDirectory !== null) {
-      const port = parsedUrl.port.length > 0
-        ? Number(parsedUrl.port)
-        : DEFAULT_POSTGRES_PORT
-      const database = parsedUrl.pathname.replace(/^\//, '') || DEFAULT_POSTGRES_DATABASE
-      return postgres({
-        ...options,
-        path: `${socketDirectory}/.s.PGSQL.${port}`,
-        database,
-        ...(parsedUrl.username.length > 0
-          ? {
-              user: decodeURIComponent(parsedUrl.username),
-            }
-          : {}),
-        ...(parsedUrl.password.length > 0
-          ? {
-              password: decodeURIComponent(parsedUrl.password),
-            }
-          : {}),
-      })
-    }
-  }
-  catch {
-    // Delegate non-URL connection strings directly to postgres.js
-  }
-
-  return postgres(databaseUrl, options)
-}
-
 export async function executePostgresMigration(
   databaseUrl: string,
   dumpFilePath: string,
@@ -387,7 +336,7 @@ export async function executePostgresMigration(
   }
 
   const plan = normalizeLegacyDumpForPostgres(parsedJson as LegacyDumpPayload)
-  const sql = connectPostgresForMigration(databaseUrl)
+  const sql = createPostgresClient(databaseUrl, { max: 1, connect_timeout: 10, prepare: false })
 
   try {
     await sql.begin(async (transaction) => {

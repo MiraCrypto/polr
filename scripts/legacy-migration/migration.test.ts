@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { describe, expect, it, vi } from 'vitest'
+import * as dbClientModule from '../../src/db/client.js'
 import { parseMysqlBatchOutput, unescapeMysqlBatchCell } from './export-mysql.js'
 import {
   calculateNextCounterSequenceValue,
+  executePostgresMigration,
   normalizeLegacyDumpForPostgres,
 } from './import-postgres.js'
 
@@ -177,5 +182,76 @@ describe('legacy Polr 2 MySQL-to-PostgreSQL migration utilities', () => {
     // '1Z' in Base-62 is 1 * 62 + 61 = 123, so nextCounterSequenceValue = 124
     expect(plan.nextCounterSequenceValue).toBe(124)
     expect(calculateNextCounterSequenceValue([])).toBe(0)
+  })
+
+  it('delegates database connection creation to createPostgresClient with migration options', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'polr-migration-test-'))
+    const tempDumpPath = join(tempDir, 'dump.json')
+    await writeFile(
+      tempDumpPath,
+      JSON.stringify({
+        users: [],
+        links: [],
+      }),
+      'utf8',
+    )
+
+    const fakeSql = Object.assign(
+      (..._args: unknown[]) => Promise.resolve([]),
+      {
+        begin: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => {
+          const fakeTx = Object.assign(
+            (..._args: unknown[]) =>
+              Promise.resolve([
+                { table_name: 'public.users', user_count: 0, link_count: 0 },
+              ]),
+            {
+              unsafe: vi.fn().mockResolvedValue([]),
+            },
+          )
+          return await callback(fakeTx)
+        }),
+        end: vi.fn().mockResolvedValue(undefined),
+      },
+    ) as unknown as ReturnType<typeof dbClientModule.createPostgresClient>
+
+    const createClientSpy = vi.spyOn(dbClientModule, 'createPostgresClient').mockReturnValue(fakeSql)
+
+    try {
+      const databaseUrl = 'postgres://migration_user:secret@%2Frun%2Fpostgresql/target_db'
+      const plan = await executePostgresMigration(databaseUrl, tempDumpPath)
+
+      expect(createClientSpy).toHaveBeenCalledTimes(1)
+      expect(createClientSpy).toHaveBeenCalledWith(databaseUrl, {
+        max: 1,
+        connect_timeout: 10,
+        prepare: false,
+      })
+      expect(fakeSql.end).toHaveBeenCalledWith({ timeout: 5 })
+      expect(plan.users).toEqual([])
+      expect(plan.links).toEqual([])
+    }
+    finally {
+      createClientSpy.mockRestore()
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('creates client with migration options and resolves unix domain sockets identical to client factory', async () => {
+    const client = dbClientModule.createPostgresClient(
+      'postgres://migrator:pass@%2Fvar%2Frun%2Fpostgresql:5433/polr_migration',
+      { max: 1, connect_timeout: 10, prepare: false },
+    )
+    try {
+      expect(client.options.path).toBe('/var/run/postgresql/.s.PGSQL.5433')
+      expect(client.options.user).toBe('migrator')
+      expect(client.options.database).toBe('polr_migration')
+      expect(client.options.max).toBe(1)
+      expect(client.options.connect_timeout).toBe(10)
+      expect(client.options.prepare).toBe(false)
+    }
+    finally {
+      await client.end({ timeout: 0 })
+    }
   })
 })
