@@ -9,13 +9,14 @@ import {
   serializeSignedSessionToken,
   verifyPasswordWithBcrypt,
 } from '../../src/domain/authService.js'
-import { encodeBaseNumber } from '../../src/domain/base62.js'
+import { BASE_ALPHABET, encodeBaseNumber } from '../../src/domain/base62.js'
 import {
   checkIfAlreadyShortenedUrl,
   formatShortenedUrl,
   isReservedRouteEnding,
   isValidEndingSyntax,
   isValidHttpUrl,
+  RESERVED_ROUTE_ENDINGS,
 } from '../../src/domain/linkService.js'
 import { formatUtcTimestamp, fromLegacyWireRole, toLegacyWireRole } from '../../src/domain/types.js'
 import {
@@ -41,6 +42,18 @@ describe('domain role wire mapping', () => {
 })
 
 describe('base-32 and base-62 counter encoding', () => {
+  it('exports canonical domain constants with expected values', () => {
+    expect(BASE_ALPHABET).toBe('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    expect(RESERVED_ROUTE_ENDINGS).toBeInstanceOf(Set)
+    expect(RESERVED_ROUTE_ENDINGS.size).toBe(17)
+    expect(RESERVED_ROUTE_ENDINGS.has('admin')).toBe(true)
+    expect(RESERVED_ROUTE_ENDINGS.has('login')).toBe(true)
+    expect(RESERVED_ROUTE_ENDINGS.has('logout')).toBe(true)
+    expect(RESERVED_ROUTE_ENDINGS.has('shorten')).toBe(true)
+    expect(RESERVED_ROUTE_ENDINGS.has('api')).toBe(true)
+    expect(RESERVED_ROUTE_ENDINGS.has('setup')).toBe(true)
+  })
+
   it('encodes base-62 and base-32 integers accurately across digit boundaries', () => {
     expect(encodeBaseNumber(0, 62)).toBe('0')
     expect(encodeBaseNumber(61, 62)).toBe('Z')
@@ -156,6 +169,7 @@ describe('url and ending validation helpers', () => {
     expect(isValidEndingSyntax('bad/slash')).toBe(false)
     expect(isValidEndingSyntax('bad space')).toBe(false)
 
+    expect(RESERVED_ROUTE_ENDINGS.has('admin')).toBe(true)
     expect(isReservedRouteEnding('admin')).toBe(true)
     expect(isReservedRouteEnding('LOGIN')).toBe(true)
     expect(isReservedRouteEnding('custom-slug')).toBe(false)

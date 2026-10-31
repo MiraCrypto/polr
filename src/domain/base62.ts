@@ -1,4 +1,4 @@
-const BASE_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+export const BASE_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 export function encodeBaseNumber(value: number, radix: 32 | 62 = 62): string {
   if (!Number.isInteger(value) || value < 0) {
