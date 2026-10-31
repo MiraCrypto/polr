@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && tsc --project tsconfig.build.json",
+    "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc",
     "start": "node dist/index.js",
     "create-admin": "tsx src/createAdmin.ts",
