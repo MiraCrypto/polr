@@ -63,6 +63,8 @@ describe('web routes, session lifecycle, shortening, and redirect contracts', ()
     const publicHtml = await publicRoot.text()
     expect(publicHtml).toContain('action=\'/shorten\'')
     expect(publicHtml).toContain('id=\'check-link-availability\'')
+    expect(publicHtml).toContain('<a href="/login">Sign In</a>')
+    expect(publicHtml).not.toContain('login-dropdown-menu')
 
     const { sessionCookies } = await authenticateSession(
       privateApp,
@@ -118,7 +120,17 @@ describe('web routes, session lifecycle, shortening, and redirect contracts', ()
     })
 
     const loginGet = await app.request('/login')
-    const csrf = extractCsrfTokenFromHtml(await loginGet.text())
+    expect(loginGet.status).toBe(200)
+    const loginHtml = await loginGet.text()
+    expect(loginHtml).toContain('<title>Sign In - Test Shortener</title>')
+    expect(loginHtml).toContain('<h1>Sign In</h1>')
+    expect(loginHtml).toContain('class="form-control login-field"')
+    expect(loginHtml).toContain('class="login-submit btn btn-success"')
+    expect(loginHtml).toContain('action="/login"')
+    expect(loginHtml).toContain('<a href="/login">Sign In</a>')
+    expect(loginHtml).not.toContain('login-dropdown-menu')
+
+    const csrf = extractCsrfTokenFromHtml(loginHtml)
     const cookies = extractCookiesFromResponse(loginGet)
 
     const badCsrfLogin = await app.request('/login', {
@@ -148,6 +160,13 @@ describe('web routes, session lifecycle, shortening, and redirect contracts', ()
     expect(extractCookiesFromResponse(inactiveLogin)).not.toContain('polr_session=')
 
     const { sessionCookies } = await authenticateSession(app, 'active_member', 'valid-pw')
+
+    const authedLoginGet = await app.request('/login', {
+      headers: { Cookie: sessionCookies },
+    })
+    expect(authedLoginGet.status).toBe(302)
+    expect(authedLoginGet.headers.get('location')).toBe('/')
+
     await usersRepository.toggleUserActive(1)
 
     const adminAfterDeactivation = await app.request('/admin', {

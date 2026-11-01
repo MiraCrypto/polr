@@ -85,14 +85,14 @@ export function renderLoginPage(context: PageRenderContext): string {
   const escapedCsrfToken = escapeHtmlEntities(context.csrfToken)
 
   const contentHtml = `<div class="center-text">
-    <h1>Login</h1><br/><br/>
+    <h1>Sign In</h1><br/><br/>
     <div class="col-md-3"></div>
     <div class="col-md-6">
         <form action="/login" method="POST">
-            <input type="text" placeholder="username" name="username" class="form-control login-field" />
-            <input type="password" placeholder="password" name="password" class="form-control login-field" />
+            <input type="text" placeholder="Username" name="username" class="form-control login-field" />
+            <input type="password" placeholder="Password" name="password" class="form-control login-field" />
             <input type="hidden" name='_token' value='${escapedCsrfToken}' />
-            <input type="submit" value="Login" class="login-submit btn btn-success" />
+            <input type="submit" value="Sign In" class="login-submit btn btn-success" />
             <p class='login-prompts'></p>
         </form>
     </div>
@@ -101,6 +101,7 @@ export function renderLoginPage(context: PageRenderContext): string {
 
   return renderBaseLayout({
     ...context,
+    title: `Sign In - ${context.config.appName}`,
     extraStylesheets: ['/css/login.css'],
     contentHtml,
   })

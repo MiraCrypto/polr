@@ -19,10 +19,8 @@ export interface BaseLayoutParameters {
 function renderNavbarHtml(
   config: ApplicationConfiguration,
   currentUser: UserRecord | null,
-  csrfToken: string,
 ): string {
   const escapedAppName = escapeHtmlEntities(config.appName)
-  const escapedCsrfToken = escapeHtmlEntities(csrfToken)
 
   const mobileLinks = currentUser === null
     ? `<li class="visible-xs"><a href="/login">Sign In</a></li>`
@@ -31,18 +29,7 @@ function renderNavbarHtml(
                 <li class="visible-xs"><a href="/logout">Logout</a></li>`
 
   const desktopAuthSection = currentUser === null
-    ? `<li class="dropdown">
-                    <a class="dropdown-toggle" href="#" data-toggle="dropdown">Sign In <strong class="caret"></strong></a>
-                    <div class="dropdown-menu pull-right login-dropdown-menu" id="dropdown">
-                        <h2>Login</h2>
-                        <form action="/login" method="POST" accept-charset="UTF-8">
-                            <input type="text" name="username" placeholder='Username' size="30" class="form-control login-form-field" />
-                            <input type="password" name="password" placeholder='Password' size="30" class="form-control login-form-field" />
-                            <input type="hidden" name='_token' value='${escapedCsrfToken}' />
-                            <input class="btn btn-success form-control login-form-submit" type="submit" name="login" value="Sign In" />
-                        </form>
-                    </div>
-                </li>`
+    ? `<li><a href="/login">Sign In</a></li>`
     : `<div class='nav pull-right navbar-nav'>
                     <li class='dropdown'>
                     <a class="dropdown-toggle login-name" href="#" data-toggle="dropdown">${escapeHtmlEntities(currentUser.username)} <strong class="caret"></strong></a>
@@ -148,7 +135,7 @@ export function renderBaseLayout(parameters: BaseLayoutParameters): string {
     ${extraCssHtml}
 </head>
 <body>
-    ${renderNavbarHtml(parameters.config, parameters.currentUser, parameters.csrfToken)}
+    ${renderNavbarHtml(parameters.config, parameters.currentUser)}
     <div class="container">
         <div class="${contentDivClasses}">
             ${parameters.contentHtml}

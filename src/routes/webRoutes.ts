@@ -48,6 +48,10 @@ export function registerWebRoutes(app: Hono, dependencies: ApplicationDependenci
 
   app.get('/login', async (context) => {
     const pageContext = await buildPageRenderContext(context, config, usersRepository)
+    if (pageContext.currentUser !== null) {
+      return context.redirect('/', 302)
+    }
+
     return context.html(renderLoginPage(pageContext))
   })
 
