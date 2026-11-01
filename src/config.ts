@@ -1,3 +1,4 @@
+const DEFAULT_ENV_FILE_PATH = '.env'
 const DEFAULT_HTTP_PORT = 3000
 const DEFAULT_BIND_HOST = '127.0.0.1'
 const DEFAULT_POLR_BASE = 62
@@ -104,9 +105,29 @@ function requireSigningAppKey(environmentVariables: NodeJS.ProcessEnv): string {
   return appKey
 }
 
+export function loadOptionalEnvFile(
+  filePath: string = DEFAULT_ENV_FILE_PATH,
+  warn: (message: string) => void = console.warn,
+): boolean {
+  try {
+    process.loadEnvFile(filePath)
+    return true
+  }
+  catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      warn(`Environment file '${filePath}' not found.`)
+      return false
+    }
+    throw error
+  }
+}
+
 export function loadApplicationConfiguration(
   environmentVariables: NodeJS.ProcessEnv = process.env,
 ): ApplicationConfiguration {
+  if (environmentVariables === process.env) {
+    loadOptionalEnvFile()
+  }
   const port = parseOptionalPositiveInteger(environmentVariables, 'PORT', DEFAULT_HTTP_PORT)
   if (port > MAXIMUM_TCP_PORT) {
     throw new Error(`Invalid PORT (must be <= ${MAXIMUM_TCP_PORT}): ${port}`)

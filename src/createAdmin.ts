@@ -1,6 +1,7 @@
 import type { UsersRepository } from './db/repositories.js'
 import type { UserRecord } from './domain/types.js'
 import { text } from 'node:stream/consumers'
+import { loadOptionalEnvFile } from './config.js'
 import { createPostgresClient } from './db/client.js'
 import { createPostgresUsersRepository } from './db/usersRepository.js'
 import { hashPasswordWithBcrypt } from './domain/authService.js'
@@ -95,6 +96,7 @@ async function runCli(): Promise<void> {
     return
   }
 
+  loadOptionalEnvFile()
   const databaseUrl = process.env['DATABASE_URL']?.trim() ?? ''
   if (databaseUrl.length === 0) {
     console.error('Missing required environment variable: DATABASE_URL')

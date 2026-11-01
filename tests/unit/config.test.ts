@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadApplicationConfiguration } from '../../src/config.js'
+import { loadApplicationConfiguration, loadOptionalEnvFile } from '../../src/config.js'
 import { createPostgresClient, formatSubstringLikePattern } from '../../src/db/client.js'
 
 const MINIMAL_REQUIRED_ENVIRONMENT: Record<string, string> = {
@@ -30,6 +30,15 @@ describe('application configuration loader', () => {
     expect(config.indexRedirectUrl).toBe('')
     expect(config.polrVersion).toBe('3.0.0')
     expect(config.polrGeneratedAt).toBeNull()
+
+    const warnings: string[] = []
+    const loadedMissing = loadOptionalEnvFile('.env.nonexistent-test-file', (msg) => {
+      warnings.push(msg)
+    })
+    expect(loadedMissing).toBe(false)
+    expect(warnings).toEqual([
+      'Environment file \'.env.nonexistent-test-file\' not found.',
+    ])
   })
 
   it('throws when any required deployment variable is missing or whitespace', () => {
