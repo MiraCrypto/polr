@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadApplicationConfiguration, loadOptionalEnvFile } from '../../src/config.js'
 import { createPostgresClient, formatSubstringLikePattern } from '../../src/db/client.js'
+import { resolveDefaultSchemaFilePath } from '../../src/db/setup.js'
 
 const MINIMAL_REQUIRED_ENVIRONMENT: Record<string, string> = {
   APP_NAME: 'Test Shortener',
@@ -176,5 +177,6 @@ describe('application configuration loader', () => {
     await tcpClient.end({ timeout: 0 })
 
     expect(formatSubstringLikePattern('my_slug%100\\test')).toBe('%my\\_slug\\%100\\\\test%')
+    expect(resolveDefaultSchemaFilePath()).toMatch(/schema\.sql$/)
   })
 })

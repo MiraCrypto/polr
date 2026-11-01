@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { ensureAdministratorAccount } from '../../src/createAdmin.js'
+import {
+  ensureAdministratorAccount,
+  ensureUserAccount,
+  parseUserCliArguments,
+} from '../../src/createAdmin.js'
 import {
   constantTimeStringEqual,
   hashPasswordWithBcrypt,
@@ -136,6 +140,65 @@ describe('administrator account bootstrap and recovery', () => {
     await expect(
       ensureAdministratorAccount(usersRepository, { username: 'valid_admin', password: '' }),
     ).rejects.toThrow(/Password must not be empty/)
+  })
+
+  it('provisions standard non-admin user accounts and parses CLI role flags', async () => {
+    const { usersRepository } = createInMemoryRepositories()
+
+    const createdUser = await ensureUserAccount(usersRepository, {
+      username: 'standard_member',
+      password: 'member-password',
+      email: 'member@example.com',
+    })
+    expect(createdUser.status).toBe('created')
+    expect(createdUser.user.role).toBe('user')
+    expect(createdUser.user.isActive).toBe(true)
+    expect(await verifyPasswordWithBcrypt('member-password', createdUser.user.passwordHash)).toBe(true)
+
+    const demotedAdmin = await ensureUserAccount(usersRepository, {
+      username: 'standard_member',
+      password: 'updated-password',
+      role: 'admin',
+    })
+    expect(demotedAdmin.status).toBe('updated')
+    expect(demotedAdmin.user.role).toBe('admin')
+
+    const revertedToUser = await ensureUserAccount(usersRepository, {
+      username: 'standard_member',
+      password: 'final-password',
+      role: 'user',
+    })
+    expect(revertedToUser.status).toBe('updated')
+    expect(revertedToUser.user.role).toBe('user')
+
+    expect(parseUserCliArguments([])).toBeNull()
+    expect(parseUserCliArguments(['--role=user'])).toBeNull()
+    expect(parseUserCliArguments(['alice', 'alice@example.com'])).toEqual({
+      username: 'alice',
+      email: 'alice@example.com',
+      role: 'admin',
+    })
+    expect(parseUserCliArguments(['--role=user', 'alice', 'alice@example.com'])).toEqual({
+      username: 'alice',
+      email: 'alice@example.com',
+      role: 'user',
+    })
+    expect(parseUserCliArguments([
+      '--role=user',
+      'alice',
+      '--role',
+      'admin',
+    ])).toEqual({
+      username: 'alice',
+      email: null,
+      role: 'admin',
+    })
+    expect(() => parseUserCliArguments(['alice', '--role=owner'])).toThrow(/Invalid role/)
+    expect(() => parseUserCliArguments(['alice', '--role'])).toThrow(/Missing value for --role/)
+    expect(() => parseUserCliArguments(['alice', '--unknown'])).toThrow(/Unknown option/)
+    expect(() => parseUserCliArguments(['alice', 'a@example.com', 'extra'])).toThrow(
+      /Unexpected extra argument/,
+    )
   })
 })
 

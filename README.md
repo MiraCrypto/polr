@@ -10,19 +10,24 @@ Minimalist URL shortening platform powered by Node.js 26, TypeScript, Hono, and 
 
 ## Quick Start
 
-1. Install dependencies and apply [`src/db/schema.sql`](src/db/schema.sql) to PostgreSQL:
+1. Install dependencies and configure required environment variables (see [`.env.example`](.env.example)), generating a strong `APP_KEY` (`openssl rand -hex 32`):
 
 ```bash
 pnpm install
-psql "$DATABASE_URL" -f src/db/schema.sql
+cp .env.example .env
 ```
 
-2. Configure required environment variables (see [`.env.example`](.env.example)), generating a strong `APP_KEY` (`openssl rand -hex 32`).
+2. Apply [`src/db/schema.sql`](src/db/schema.sql) to PostgreSQL:
 
-3. Bootstrap or reset an administrator account:
+```bash
+pnpm run db:setup
+```
+
+3. Bootstrap or reset administrator and standard user accounts:
 
 ```bash
 ADMIN_PASSWORD='your-strong-password' pnpm run create-admin admin admin@example.com
+USER_PASSWORD='your-user-password' pnpm run create-user member member@example.com
 ```
 
 4. Build and start the server:

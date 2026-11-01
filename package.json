@@ -12,7 +12,9 @@
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc",
     "start": "node dist/index.js",
+    "db:setup": "tsx src/db/setup.ts",
     "create-admin": "tsx src/createAdmin.ts",
+    "create-user": "tsx src/createAdmin.ts --role=user",
     "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
