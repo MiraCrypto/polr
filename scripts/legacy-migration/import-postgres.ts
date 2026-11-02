@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import postgres from 'postgres'
+import { BASE_ALPHABET } from '../../src/domain/base62.js'
+import { RESERVED_ROUTE_ENDINGS } from '../../src/domain/linkService.js'
 
 type MigrationUserRole = 'user' | 'admin'
 
@@ -79,7 +81,6 @@ export interface NormalizedMigrationPlan {
   readonly nextCounterSequenceValue: number
 }
 
-const BASE_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const VALID_IDENTIFIER_PATTERN = /^[\w-]+$/
 const MAXIMUM_LONG_URL_LENGTH = 65535
 const DEFAULT_FALLBACK_MIGRATION_TIMESTAMP = '1970-01-01T00:00:00Z'
@@ -91,26 +92,6 @@ const DATABASE_CLOSE_TIMEOUT_SECONDS = 5
 const DEFAULT_SCHEMA_SQL_FILE_PATH = fileURLToPath(
   new URL('../../src/db/schema.sql', import.meta.url),
 )
-
-const RESERVED_ROUTE_ENDINGS = new Set([
-  'admin',
-  'login',
-  'logout',
-  'shorten',
-  'about-polr',
-  'api',
-  'css',
-  'js',
-  'img',
-  'fonts',
-  'directives',
-  'favicon.ico',
-  'setup',
-  'signup',
-  'lost_password',
-  'reset_password',
-  'activate',
-])
 
 function stripNullBytesAndTrim(value: string | null | undefined): string {
   return (value ?? '').replaceAll('\0', '').trim()

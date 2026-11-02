@@ -8,7 +8,7 @@ const MAX_COUNTER_ALLOCATION_ATTEMPTS = 32
 const POSTGRES_UNIQUE_VIOLATION_CODE = '23505'
 const VALID_ENDING_PATTERN = /^[\w-]+$/
 
-const RESERVED_ROUTE_ENDINGS = new Set([
+export const RESERVED_ROUTE_ENDINGS = new Set([
   'admin',
   'login',
   'logout',
